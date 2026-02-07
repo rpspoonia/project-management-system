@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.env.*
+venv/
+.env/
+
+# Django
+db.sqlite3
+media/
+staticfiles/
+
+# Node / React
+node_modules/
+build/
+
+# Docker
+*.log
+docker-data/
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+
+.venv
+/venv
