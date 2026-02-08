@@ -1,6 +1,7 @@
 import graphene
 from graphene_django import DjangoObjectType
 from django.shortcuts import get_object_or_404
+from django.utils.text import slugify
 
 from .models import (
     Organization,
@@ -49,8 +50,20 @@ class ProjectType(DjangoObjectType):
             return 0.0
         completed = self.tasks.filter(status=TaskStatus.DONE.value).count()
         return round((completed / total) * 100, 2)
+
+class TaskCommentType(DjangoObjectType):
+    class Meta:
+        model = TaskComment
+        fields = (
+            "id",
+            "content",
+            "author_email",
+            "created_at",
+        )
     
 class TaskType(DjangoObjectType):
+    comments = graphene.List(TaskCommentType)
+
     class Meta:
         model = Task
         fields = (
@@ -63,6 +76,9 @@ class TaskType(DjangoObjectType):
             "created_at",
             "project",
         )
+
+    def resolve_comments(self, info):
+        return self.comments.all()
 
 class Query(graphene.ObjectType):
     organizations = graphene.List(OrganizationType)
@@ -93,6 +109,28 @@ class Query(graphene.ObjectType):
         return Task.objects.filter(
             project_id=project_id
         )
+
+class CreateOrganization(graphene.Mutation):
+    organization = graphene.Field(OrganizationType)
+
+    class Arguments:
+        name = graphene.String(required=True)
+        contact_email = graphene.String(required=True)
+
+    def mutate(self, info, name, contact_email):
+        base_slug = slugify(name)
+        slug = base_slug
+        i = 1
+        while Organization.objects.filter(slug=slug).exists():
+            slug = f"{base_slug}-{i}"
+            i += 1
+
+        org = Organization.objects.create(
+            name=name,
+            slug=slug,
+            contact_email=contact_email,
+        )
+        return CreateOrganization(organization=org)
 
 class CreateProject(graphene.Mutation):
     class Arguments:
@@ -208,6 +246,7 @@ class AddTaskComment(graphene.Mutation):
         return AddTaskComment(comment="Comment added successfully")
 
 class Mutation(graphene.ObjectType):
+    create_organization = CreateOrganization.Field()
     create_project = CreateProject.Field()
     update_project = UpdateProject.Field()
     create_task = CreateTask.Field()
